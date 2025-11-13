@@ -92,8 +92,13 @@ def main(_argv):
     FRAME_WIDTH=30
     FRAME_HEIGHT=100
 
-    SOURCE_POLYGONE = np.array([[18, 550], [1852, 608],[1335, 370], [534, 343]], dtype=np.float32)
-    BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT],[0, FRAME_HEIGHT]], dtype=np.float32)
+    # original --> for 1920 x 1080 videos
+    # SOURCE_POLYGONE = np.array([[18, 550], [1852, 608],[1335, 370], [534, 343]], dtype=np.float32)
+    # BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT],[0, FRAME_HEIGHT]], dtype=np.float32)
+
+    # new --> for 320 x 240 videos
+    SOURCE_POLYGONE = np.array([[20, 200], [300, 220], [280, 100], [40, 80]], dtype=np.float32)
+    BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
 
     M = cv2.getPerspectiveTransform(SOURCE_POLYGONE, BIRD_EYE_VIEW)
 
@@ -158,7 +163,7 @@ def main(_argv):
                     if confidence < opt.conf:
                         continue
                 else:
-                    if class_id != opt.class_id or confidence < opt.conf:
+                    if int(label) != opt.class_id or confidence < opt.conf:    #  class_id instead of int(label)
                         continue            
                     
                 if polygon_mask[(y1 + y2) // 2, (x1 + x2) // 2] == 255:
