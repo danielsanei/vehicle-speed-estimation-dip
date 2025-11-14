@@ -36,6 +36,9 @@ This ensures the region of interest polygon fits within the 320x240 frame.
 ### 3. Created configs/coco.names file
 Added the COCO class names file required for object label mapping.
 
+## Scripts
+Run `pip install moviepy` inside virtual environment, then run avi_to_mp4.py to convert AVI files to MP4 format.
+
 ## Notes
 - Default confidence threshold: 0.50
 - Output shows bounding boxes, track IDs, and speed estimates in km/h
