@@ -5,7 +5,13 @@ import argparse, os
 from deep_sort_realtime.deepsort_tracker import DeepSort
 import time
 from ultralytics import YOLO
+from noise_preprocessing import denoise_gaussian    # import denoise filtering
 
+# noise filtering flag
+FILTER_MODE = "none"
+# FILTER_MODE = "gaussian"
+# FILTER_MODE = "median"
+###
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -43,7 +49,6 @@ def parse_args():
     )
     opt = parser.parse_args()
     return opt
-
 
 
 def draw_corner_rect(img, bbox, line_length=30, line_thickness=5, rect_thickness=1,
@@ -85,6 +90,12 @@ def read_frames(cap):
         ret, frame = cap.read()
         if not ret:
             break
+        # select denoise filter
+        if FILTER_MODE == "gaussian":
+            frame = denoise_gaussian(frame)
+        #elif FILTER_MODE == "median":
+            #frame = denoise_median(frame)
+        ###
         yield frame 
 
 
@@ -99,6 +110,7 @@ def main(_argv):
     # new --> for 320 x 240 videos
     SOURCE_POLYGONE = np.array([[20, 200], [300, 220], [280, 100], [40, 80]], dtype=np.float32)
     BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
+    # change bird eye view if speed is weird
 
     M = cv2.getPerspectiveTransform(SOURCE_POLYGONE, BIRD_EYE_VIEW)
 
@@ -142,6 +154,14 @@ def main(_argv):
     start_time = time.time()
     prev_positions={}
     speed_accumulator={}
+
+    # tracking metrics
+    total_detections = 0            # YOLO detection count
+    frames_with_detections = 0
+    total_confidence = 0            # YOLO confidence scores
+    total_confidence_count = 0              
+    speed_variances = {}            # variances in speed (indicate noise)
+    ###
     
     while True:
         try:
@@ -155,7 +175,11 @@ def main(_argv):
         for pred in results:
             for box in pred.boxes:    
                 x1, y1, x2, y2 = map(int, box.xyxy[0] )
-                confidence = box.conf[0]     
+                confidence = box.conf[0]
+                # METRIC: YOLO confidence
+                total_confidence += float(confidence)
+                total_confidence_count += 1
+                ###
                 label = box.cls[0]  
 
                 # Filter out weak detections by confidence threshold and class_id
@@ -167,15 +191,22 @@ def main(_argv):
                         continue            
                     
                 if polygon_mask[(y1 + y2) // 2, (x1 + x2) // 2] == 255:
-                    detect.append([[x1, y1, x2 - x1, y2 - y1], confidence, int(label)])            
+                    detect.append([[x1, y1, x2 - x1, y2 - y1], confidence, int(label)])
+                    # METRIC: track current detection
+                    total_detections += 1
+                    ###
+        # METRIC: whether current frame has detection
+        if len(detect) > 0:
+            frames_with_detections += 1
+        ###
         tracks = tracker.update_tracks(detect, frame=frame)
         for track in tracks:
             if not track.is_confirmed():
                 continue
-            track_id = track.track_id    
+            track_id = track.track_id
             ltrb = track.to_ltrb()
-            class_id = track.get_det_class()
-            x1, y1, x2, y2 = map(int, ltrb)
+            class_id = track.get_det_class()    # YOLO-predicted object class (i.e. car, person, motorcycle)
+            x1, y1, x2, y2 = map(int, ltrb)     # bounding box coordinates
             if polygon_mask[(y1+y2)//2,(x1+x2)//2] == 0:
                 tracks.remove(track)
             color = colors[class_id]
@@ -189,6 +220,11 @@ def main(_argv):
                 speed = calculate_speed(distance, fps)
                 if track_id in speed_accumulator:
                     speed_accumulator[track_id].append(speed)
+                    # METRIC: speed variance (keep track of speeds, compute variance at the end)
+                    if track_id not in speed_variances:
+                        speed_variances[track_id] = []
+                    speed_variances[track_id].append(speed)
+                    ###
                     if len(speed_accumulator[track_id]) > 100:
                         speed_accumulator[track_id].pop(0)
                 else:
@@ -224,6 +260,22 @@ def main(_argv):
     
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+    # METRICS: display results
+    print("\n### METRICS ###")
+    print(f"Total detections: {total_detections}")                                  # detections
+    print(f"Average detections per frame: {total_detections / frame_count:.2f}")
+    if total_confidence_count > 0:                                                  # YOLO confidence
+        avg_conf = total_confidence / total_confidence_count
+        print(f"Average YOLO confidence: {avg_conf:.4f}")
+    else:
+        print("Average YOLO confidence: N/A (no detections)")
+    print(f"Frames with >= 1 detection: {frames_with_detections}/{frame_count}")
+    for tid, speeds in speed_variances.items():                                     # speed variance
+        if len(speeds) > 3:
+            var = np.var(speeds)
+            print(f"Track ID {tid}: speed variance = {var:.2f}")
+    ###
 
     cap.release()
     writer.release()
