@@ -8,7 +8,7 @@ from ultralytics import YOLO
 from noise_preprocessing import denoise_gaussian    # import denoise filtering
 
 # noise filtering flag
-FILTER_MODE = "none"
+# FILTER_MODE = "none"
 # FILTER_MODE = "gaussian"
 # FILTER_MODE = "median"
 ###
@@ -47,6 +47,15 @@ def parse_args():
         default=None,
         help="class ID to track",
     )
+    # add filter argument
+    parser.add_argument(
+        "--filter",
+        type=str,
+        default="none",
+        choices=["none", "gaussian", "median"],
+        help="Selecting processing filter"
+    )
+    ###
     opt = parser.parse_args()
     return opt
 
@@ -100,6 +109,7 @@ def read_frames(cap):
 
 
 def main(_argv):
+
     FRAME_WIDTH=30
     FRAME_HEIGHT=100
 
@@ -107,10 +117,14 @@ def main(_argv):
     # SOURCE_POLYGONE = np.array([[18, 550], [1852, 608],[1335, 370], [534, 343]], dtype=np.float32)
     # BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT],[0, FRAME_HEIGHT]], dtype=np.float32)
 
-    # new --> for 320 x 240 videos
-    SOURCE_POLYGONE = np.array([[20, 200], [300, 220], [280, 100], [40, 80]], dtype=np.float32)
-    BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
+    # new --> for 320 x 240 videos (Kaggle dataset)
+    # SOURCE_POLYGONE = np.array([[20, 200], [300, 220], [280, 100], [40, 80]], dtype=np.float32)
+    # BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
     # change bird eye view if speed is weird
+
+    # new2 --> for iPhone videos (custom dataset)
+    SOURCE_POLYGONE = np.array([[500, 450], [1600, 480], [1800, 980], [400, 960]], dtype=np.float32)
+    BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT],[0, FRAME_HEIGHT]], dtype=np.float32)
 
     M = cv2.getPerspectiveTransform(SOURCE_POLYGONE, BIRD_EYE_VIEW)
 
@@ -263,6 +277,7 @@ def main(_argv):
 
     # METRICS: display results
     print("\n### METRICS ###")
+    print("Filter Mode:", FILTER_MODE)
     print(f"Total detections: {total_detections}")                                  # detections
     print(f"Average detections per frame: {total_detections / frame_count:.2f}")
     if total_confidence_count > 0:                                                  # YOLO confidence
@@ -284,4 +299,7 @@ def main(_argv):
 
 if __name__ == "__main__":
     opt = parse_args()
+    # select filter type
+    FILTER_MODE = opt.filter.lower()
+    ###
     main(opt)
