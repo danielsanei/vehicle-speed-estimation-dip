@@ -3,8 +3,8 @@ from moviepy import VideoFileClip    # read, edit, export video files
 import os
 
 # define folders
-input_folder = "videos_avi"
-output_folder = "videos_mp4"
+input_folder = "content/noise/kaggle_avi"
+output_folder = "content/noise/kaggle_mp4"
 os.makedirs(output_folder, exist_ok=True)   # create output folder if does not exist
 
 # count total number of AVI files to convert

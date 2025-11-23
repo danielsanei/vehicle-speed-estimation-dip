@@ -47,7 +47,7 @@ def parse_args():
         default=None,
         help="class ID to track",
     )
-    # add filter argument
+    # add filter flag argument
     parser.add_argument(
         "--filter",
         type=str,
