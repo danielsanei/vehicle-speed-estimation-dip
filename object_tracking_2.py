@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from deep_sort_realtime.deepsort_tracker import DeepSort
 import time
 from ultralytics import YOLO
-from noise_preprocessing import denoise_gaussian
+from noise_preprocessing import denoise_gaussian, denoise_median
 
 
 @contextmanager
@@ -116,6 +116,9 @@ def read_frames(cap, filter_mode):
         if filter_mode == "gaussian":
             with suppress_output():
                 frame = denoise_gaussian(frame)
+        elif filter_mode == "median":
+            with suppress_output():
+                frame = denoise_median(frame)
         yield frame 
 
 

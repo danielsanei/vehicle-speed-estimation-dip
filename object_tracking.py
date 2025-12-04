@@ -5,7 +5,7 @@ import argparse, os
 from deep_sort_realtime.deepsort_tracker import DeepSort
 import time
 from ultralytics import YOLO
-from noise_preprocessing import denoise_gaussian    # import denoise filtering
+from noise_preprocessing import denoise_gaussian, denoise_median
 
 # noise filtering flag
 # FILTER_MODE = "none"
@@ -102,10 +102,10 @@ def read_frames(cap):
         # select denoise filter
         if FILTER_MODE == "gaussian":
             frame = denoise_gaussian(frame)
-        #elif FILTER_MODE == "median":
-            #frame = denoise_median(frame)
+        elif FILTER_MODE == "median":
+            frame = denoise_median(frame)
         ###
-        yield frame 
+        yield frame
 
 
 def main(_argv):
@@ -118,12 +118,12 @@ def main(_argv):
     # BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT],[0, FRAME_HEIGHT]], dtype=np.float32)
 
     # For Kaggle dataset (320 x 240 videos)
-    # SOURCE_POLYGONE = np.array([[104, 215], [300, 235], [280, 45], [124, 25]], dtype=np.float32)
-    # BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
-
-    # # For custom dataset (1920 x 1080 --> left.mp4)
-    SOURCE_POLYGONE = np.array([[496, 1057], [1242, 1057], [1042, 408], [637, 408]], dtype=np.float32)
+    SOURCE_POLYGONE = np.array([[104, 215], [300, 235], [280, 45], [124, 25]], dtype=np.float32)
     BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
+
+    # For custom dataset (1920 x 1080 --> left.mp4)
+    # SOURCE_POLYGONE = np.array([[496, 1057], [1242, 1057], [1042, 408], [637, 408]], dtype=np.float32)
+    # BIRD_EYE_VIEW = np.array([[0, 0],  [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
 
     M = cv2.getPerspectiveTransform(SOURCE_POLYGONE, BIRD_EYE_VIEW)
 

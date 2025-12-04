@@ -5,18 +5,18 @@ import numpy as np
 from object_tracking_2 import process_video
 
 # Configuration
-DATASET = "kaggle_mp4"
-# DATASET = "custom_mp4"
+# DATASET = "kaggle_mp4"
+DATASET = "custom_mp4"
 VIDEO_DIR = f"content/noise/{DATASET}"
 OUTPUT_DIR = f"content/batch_results/noise/{DATASET}"
 RESULTS_CSV = f"{OUTPUT_DIR}/all_results.csv"
 AGGREGATE_CSV = f"{OUTPUT_DIR}/aggregate_statistics.csv"
-FILTER_MODES = ["none", "gaussian"]
+FILTER_MODES = ["none", "gaussian", "median"]
 CUSTOM_POLYGONS = {
     "left.mp4": np.array([[544, 1057], [954, 1057], [851, 557], [629, 557]], dtype=np.float32),
     "far_left.mp4": np.array([[544, 1057], [954, 1057], [851, 557], [629, 557]], dtype=np.float32),
     "right.mp4": np.array([[749, 1057], [1262, 1057], [1012, 557], [734, 557]], dtype=np.float32),
-    "middle.mp4": np.array([[496, 1057], [1242, 1057], [1042, 408], [637, 408]], dtype=np.float32),   
+    "middle.mp4": np.array([[496, 1057], [1242, 1057], [1042, 408], [637, 408]], dtype=np.float32),
 }
 
 def get_video_files(directory):
