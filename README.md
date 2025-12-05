@@ -56,8 +56,10 @@ The denoising module (`noise_preprocessing.py`) provides preprocessing filters t
 ```bash
 # No filtering (baseline)
 python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter none
+
 # Gaussian filtering
 python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter gaussian
+
 # Median filtering
 python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter median
 ```
@@ -79,7 +81,8 @@ To compare all filters across multiple videos:
    - `videos/` - Processed output videos with annotations
 
 ## Scripts
-Run `pip install moviepy` inside virtual environment, then run avi_to_mp4.py to convert AVI files to MP4 format.
+- `extract_videos.py` - Extracts videos with "clear" weather from Kaggle dataset using metadata file
+- `avi_to_mp4.py` - Converts AVI files to MP4 format (requires `pip install moviepy`)
 
 ## Notes
 - Default confidence threshold: 0.50

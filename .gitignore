@@ -1,7 +1,12 @@
 weights/
 
 content/
+content/kaggle_videos_avi/
+content/noise/kaggle_avi
+content/noise/kaggle_mp4
+content/highway.mp4
+content/output.mp4
 
 videos_avi/
-
 videos_mp4/
+
