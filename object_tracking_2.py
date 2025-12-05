@@ -1,3 +1,4 @@
+# imports 
 import cv2
 import torch
 import numpy as np
@@ -9,10 +10,9 @@ import time
 from ultralytics import YOLO
 from noise_preprocessing import denoise_gaussian, denoise_median
 
-
+# suppress print statements, make batch_runner print statements more readable
 @contextmanager
 def suppress_output():
-    """Context manager to suppress stdout and stderr."""
     with open(os.devnull, 'w') as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
@@ -24,6 +24,7 @@ def suppress_output():
             sys.stdout = old_stdout
             sys.stderr = old_stderr
 
+# define command-line arguments
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -58,6 +59,7 @@ def parse_args():
         default=None,
         help="class ID to track",
     )
+    # add filter flag argument
     parser.add_argument(
         "--filter",
         type=str,
@@ -65,6 +67,7 @@ def parse_args():
         choices=["none", "gaussian", "median"],
         help="Selecting processing filter"
     )
+    ###
     parser.add_argument(
         "--no_display",
         action="store_true",
@@ -73,86 +76,78 @@ def parse_args():
     opt = parser.parse_args()
     return opt
 
-
+# draw rectangular bounding box on video frames
 def draw_corner_rect(img, bbox, line_length=30, line_thickness=5, rect_thickness=1,
                      rect_color=(255, 0, 255), line_color=(0, 255, 0)):
     x, y, w, h = bbox
     x1, y1 = x + w, y + h
-
     if rect_thickness != 0:
         cv2.rectangle(img, bbox, rect_color, rect_thickness)
 
-    # Top Left  x, y
+    # top left  x, y
     cv2.line(img, (x, y), (x + line_length, y), line_color, line_thickness)
     cv2.line(img, (x, y), (x, y + line_length), line_color, line_thickness)
 
-    # Top Right  x1, y
+    # top Right  x1, y
     cv2.line(img, (x1, y), (x1 - line_length, y), line_color, line_thickness)
     cv2.line(img, (x1, y), (x1, y + line_length), line_color, line_thickness)
 
-    # Bottom Left  x, y1
+    # bottom left  x, y1
     cv2.line(img, (x, y1), (x + line_length, y1), line_color, line_thickness)
     cv2.line(img, (x, y1), (x, y1 - line_length), line_color, line_thickness)
 
-    # Bottom Right  x1, y1
+    # bottom right  x1, y1
     cv2.line(img, (x1, y1), (x1 - line_length, y1), line_color, line_thickness)
     cv2.line(img, (x1, y1), (x1, y1 - line_length), line_color, line_thickness)
 
     return img  
 
+# compute speed of vehicle
 def calculate_speed(distance, fps):
     return (distance *fps)*3.6
 
-
+# calculate distance of vehicle
 def calculate_distance(p1, p2):
     return np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
 
-
+# read frames in current video, perform designated denoising filtering
 def read_frames(cap, filter_mode):
     while True:
         ret, frame = cap.read()
         if not ret:
             break
+        # select denoise filter
         if filter_mode == "gaussian":
             with suppress_output():
                 frame = denoise_gaussian(frame)
         elif filter_mode == "median":
             with suppress_output():
                 frame = denoise_median(frame)
+        ###
         yield frame 
 
-
+# process video, return metrics
 def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.50, 
                   class_id=None, blur_id=None, no_display=False, polygon=None):
-    """
-    Process a video and return metrics as a dictionary.
-    
-    Returns:
-        dict: Dictionary containing all metrics
-    """
-    
     FRAME_WIDTH=30
     FRAME_HEIGHT=100
 
-        # Use provided polygon or default based on resolution
+    # use original polygon dimensions or default configuration based on resolution
     if polygon is not None:
         SOURCE_POLYGONE = polygon
     else:
-        # Auto-detect based on video resolution
+        # detect needed polygon dimensions based on video resolution
         cap_temp = cv2.VideoCapture(video_path)
         width = int(cap_temp.get(cv2.CAP_PROP_FRAME_WIDTH))
         cap_temp.release()
-        
         if width == 320:  # Kaggle dataset
             SOURCE_POLYGONE = np.array([[104, 215], [300, 235], [280, 45], [124, 25]], dtype=np.float32)
         else:  # 1920x1080 custom dataset default
             SOURCE_POLYGONE = np.array([[544, 1057], [954, 1057], [851, 557], [629, 557]], dtype=np.float32)
-    
     BIRD_EYE_VIEW = np.array([[0, 0], [FRAME_WIDTH, 0], [FRAME_WIDTH, FRAME_HEIGHT], [0, FRAME_HEIGHT]], dtype=np.float32)
-
     M = cv2.getPerspectiveTransform(SOURCE_POLYGONE, BIRD_EYE_VIEW)
 
-    # Initialize the video capture
+    # initialize the video capture
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f'Error: Unable to open video source: {video_path}')
@@ -194,11 +189,12 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     speed_accumulator={}
 
     # tracking metrics
-    total_detections = 0
+    total_detections = 0            # YOLO detection count
     frames_with_detections = 0
-    total_confidence = 0
+    total_confidence = 0            # YOLO confidence scores
     total_confidence_count = 0              
-    speed_variances = {}
+    speed_variances = {}            # variances in speed (indicate noise)
+    ###
     
     while True:
         try:
@@ -215,8 +211,10 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
             for box in pred.boxes:    
                 x1, y1, x2, y2 = map(int, box.xyxy[0] )
                 confidence = box.conf[0]
+                # METRIC: YOLO confidence
                 total_confidence += float(confidence)
                 total_confidence_count += 1
+                ###
                 label = box.cls[0]  
 
                 # Filter out weak detections by confidence threshold and class_id
@@ -229,11 +227,13 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
                     
                 if polygon_mask[(y1 + y2) // 2, (x1 + x2) // 2] == 255:
                     detect.append([[x1, y1, x2 - x1, y2 - y1], confidence, int(label)])
+                    # METRIC: track current detection
                     total_detections += 1
-                    
+                    ###
+        # METRIC: whether current frame has detection
         if len(detect) > 0:
             frames_with_detections += 1
-            
+        ###
         tracks = tracker.update_tracks(detect, frame=frame)
         for track in tracks:
             if not track.is_confirmed():
@@ -255,9 +255,11 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
                 speed = calculate_speed(distance, fps)
                 if track_id in speed_accumulator:
                     speed_accumulator[track_id].append(speed)
+                    # METRIC: speed variance (keep track of speeds, compute variance at the end)
                     if track_id not in speed_variances:
                         speed_variances[track_id] = []
                     speed_variances[track_id].append(speed)
+                    ###
                     if len(speed_accumulator[track_id]) > 100:
                         speed_accumulator[track_id].pop(0)
                 else:
@@ -291,7 +293,7 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
         if not no_display and cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    # Calculate final metrics
+    # METRICS: calculate final metrics
     metrics = {
         "filter_mode": filter_mode,
         "video_path": video_path,
@@ -306,7 +308,7 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     
     # Calculate speed variances
     for tid, speeds in speed_variances.items():
-        if len(speeds) > 3:
+        if len(speeds) > 3:                                     # speed variance
             var = np.var(speeds)
             metrics["speed_variances"][tid] = var
     
@@ -317,6 +319,7 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     else:
         metrics["avg_speed_variance"] = 0
         metrics["max_speed_variance"] = 0
+    ###
 
     cap.release()
     writer.release()
@@ -325,10 +328,11 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     
     return metrics
 
-
+# driver code
 def main():
     opt = parse_args()
-    
+
+    # get metrics from current video
     metrics = process_video(
         video_path=opt.video,
         output_path=opt.output,
@@ -339,8 +343,8 @@ def main():
         no_display=opt.no_display
     )
     
+    # display metrics
     if metrics:
-        # Print metrics
         print("\n### METRICS ###")
         print(f"Filter Mode: {metrics['filter_mode']}")
         print(f"Total detections: {metrics['total_detections']}")
@@ -350,12 +354,11 @@ def main():
         print(f"Detection rate: {metrics['detection_rate']:.2%}")
         print(f"Average speed variance: {metrics['avg_speed_variance']:.2f}")
         print(f"Max speed variance: {metrics['max_speed_variance']:.2f}")
-        
         if metrics["speed_variances"]:
             print("\nPer-track speed variances:")
             for tid, var in metrics["speed_variances"].items():
                 print(f"  Track ID {tid}: {var:.2f}")
 
-
+# function to call driver code
 if __name__ == "__main__":
     main()
