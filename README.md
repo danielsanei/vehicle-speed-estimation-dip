@@ -79,6 +79,11 @@ To compare all filters across multiple videos:
    - `all_results.csv` - Per-video, per-filter metrics
    - `aggregate_statistics.csv` - Summary statistics across all videos
    - `videos/` - Processed output videos with annotations
+   - `*_detailed.csv` - Per-frame, per-track detailed logs
+
+### Visualizer
+   - `visualize_results.csv` - Plots displaying the resulting metrics
+
 
 ## Scripts
 - `extract_videos.py` - Extracts videos with "clear" weather from Kaggle dataset using metadata file

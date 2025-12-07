@@ -194,6 +194,8 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     total_confidence = 0            # YOLO confidence scores
     total_confidence_count = 0              
     speed_variances = {}            # variances in speed (indicate noise)
+    track_frame_counts = {}         # track duration: frames per track ID
+    unique_track_ids = set()        # all unique IDs seen (for fragmentation metric)
     ###
     
     while True:
@@ -201,6 +203,9 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
             frame = next(frame_generator)
         except StopIteration:
             break
+        
+        # start timer for processing time
+        frame_start_time = time.time()
             
         # Run model on each frame (suppress output)
         with suppress_output():
@@ -267,6 +272,13 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
                     speed_accumulator[track_id].append(speed)
             prev_positions[track_id] = transformed_pt[0][0]
             
+            # METRIC: track ID duration and uniqueness
+            unique_track_ids.add(track_id)
+            if track_id not in track_frame_counts:
+                track_frame_counts[track_id] = 0
+            track_frame_counts[track_id] += 1
+            ###
+            
             # Draw bounding box and text
             frame = draw_corner_rect(frame, (x1, y1, x2 - x1, y2 - y1), line_length=15, 
                                     line_thickness=3, rect_thickness=1, 
@@ -303,12 +315,16 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
         "avg_yolo_confidence": total_confidence / total_confidence_count if total_confidence_count > 0 else 0,
         "frames_with_detections": frames_with_detections,
         "detection_rate": frames_with_detections / frame_count if frame_count > 0 else 0,
-        "speed_variances": {}
+        "speed_variances": {},
+        "unique_track_ids": len(unique_track_ids),  # ID tracking fragmentation
+        "track_durations": {},  # per-track duration
+        "avg_track_duration": 0,  # average duration
+        "track_stability_score": 0  # stability (inverse of fragmentation)
     }
     
     # Calculate speed variances
     for tid, speeds in speed_variances.items():
-        if len(speeds) > 3:                                     # speed variance
+        if len(speeds) > 3:
             var = np.var(speeds)
             metrics["speed_variances"][tid] = var
     
@@ -319,6 +335,14 @@ def process_video(video_path, output_path, filter_mode="none", conf_threshold=0.
     else:
         metrics["avg_speed_variance"] = 0
         metrics["max_speed_variance"] = 0
+    
+    # compute track duration metrics
+    metrics["track_durations"] = track_frame_counts
+    if track_frame_counts:
+        metrics["avg_track_duration"] = np.mean(list(track_frame_counts.values()))
+        # stability score: lower unique IDs = more stable tracking
+        # score = 1000 / (unique_ids + 1) so higher is better
+        metrics["track_stability_score"] = 1000 / (len(unique_track_ids) + 1)
     ###
 
     cap.release()
@@ -354,6 +378,18 @@ def main():
         print(f"Detection rate: {metrics['detection_rate']:.2%}")
         print(f"Average speed variance: {metrics['avg_speed_variance']:.2f}")
         print(f"Max speed variance: {metrics['max_speed_variance']:.2f}")
+        
+        # ID tracking metrics
+        print(f"\n### ID TRACKING METRICS ###")
+        print(f"Unique track IDs: {metrics['unique_track_ids']}")
+        print(f"Average track duration: {metrics['avg_track_duration']:.2f} frames")
+        print(f"Track stability score: {metrics['track_stability_score']:.2f} (higher = more stable)")
+        
+        if metrics["track_durations"]:
+            print("\nPer-track durations:")
+            for tid, duration in sorted(metrics["track_durations"].items()):
+                print(f"  Track ID {tid}: {duration} frames")
+        
         if metrics["speed_variances"]:
             print("\nPer-track speed variances:")
             for tid, var in metrics["speed_variances"].items():

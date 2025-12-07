@@ -6,8 +6,8 @@ import numpy as np
 from object_tracking_2 import process_video
 
 # Configuration
-DATASET = "kaggle_mp4"
-# DATASET = "custom_mp4"
+# DATASET = "kaggle_mp4"
+DATASET = "custom_mp4"
 VIDEO_DIR = f"content/noise/{DATASET}"
 OUTPUT_DIR = f"content/batch_results/noise/{DATASET}"
 RESULTS_CSV = f"{OUTPUT_DIR}/all_results.csv"
@@ -67,7 +67,8 @@ def run_batch_processing():
                 # get polygon
                 video_filename = video_file.name
                 polygon = CUSTOM_POLYGONS.get(video_filename, None)
-                # save metrics
+                
+                # process video and save metrics
                 metrics = process_video(
                     video_path=str(video_file),
                     output_path=output_path,
@@ -82,13 +83,14 @@ def run_batch_processing():
                 # display results
                 if metrics:
                     all_results[video_name][filter_mode] = metrics
-                    print(f"    ✔ Completed in {elapsed:.1f}s")
+                    print(f"    + Completed in {elapsed:.1f}s")
                     print(f"    Detections: {metrics['total_detections']}, Avg confidence: {metrics['avg_yolo_confidence']:.3f}")
+                    print(f"    Unique IDs: {metrics['unique_track_ids']}, Avg track duration: {metrics['avg_track_duration']:.1f} frames")
                 else:
-                    print(f"    ✕ Failed")
+                    print(f"    - Failed")
                     all_results[video_name][filter_mode] = None
             except Exception as e:
-                print(f"    ✕ Error: {str(e)}")
+                print(f"    - Error: {str(e)}")
                 all_results[video_name][filter_mode] = None
     print("="*80)
     print(f"Batch processing complete - Processed {current_task}/{total_tasks} tasks")
@@ -114,6 +116,9 @@ def save_results(all_results):
                     'detection_rate': float(metrics['detection_rate']),
                     'avg_speed_variance': float(metrics['avg_speed_variance']),
                     'max_speed_variance': float(metrics['max_speed_variance']),
+                    'unique_track_ids': int(metrics['unique_track_ids']),
+                    'avg_track_duration': float(metrics['avg_track_duration']),
+                    'track_stability_score': float(metrics['track_stability_score']),
                 }
                 csv_rows.append(row)
     # verify if results save
@@ -122,9 +127,9 @@ def save_results(all_results):
             writer = csv.DictWriter(f, fieldnames=csv_rows[0].keys())
             writer.writeheader()
             writer.writerows(csv_rows)
-        print(f"\n✔ Results saved to {RESULTS_CSV}")
+        print(f"\n+ Results saved to {RESULTS_CSV}")
     else:
-        print("\n✕ No results to save")
+        print("\n- No results to save")
 
 # compute statistics for all videos
 def compute_aggregate_statistics(all_results):
@@ -136,6 +141,9 @@ def compute_aggregate_statistics(all_results):
         detection_rates = []
         avg_speed_variances = []
         max_speed_variances = []
+        unique_ids_list = []
+        avg_durations_list = []
+        stability_scores_list = []
         # for each video, append its metrics
         for video_name, filters in all_results.items():
             if filter_mode in filters and filters[filter_mode]:
@@ -145,6 +153,9 @@ def compute_aggregate_statistics(all_results):
                 detection_rates.append(metrics['detection_rate'])
                 avg_speed_variances.append(metrics['avg_speed_variance'])
                 max_speed_variances.append(metrics['max_speed_variance'])
+                unique_ids_list.append(metrics['unique_track_ids'])
+                avg_durations_list.append(metrics['avg_track_duration'])
+                stability_scores_list.append(metrics['track_stability_score'])
         # compute statistics
         stats[filter_mode] = {
             'num_videos': len(detections_per_frame),
@@ -172,6 +183,21 @@ def compute_aggregate_statistics(all_results):
                 'mean': np.mean(max_speed_variances) if max_speed_variances else 0,
                 'std': np.std(max_speed_variances) if max_speed_variances else 0,
                 'median': np.median(max_speed_variances) if max_speed_variances else 0,
+            },
+            'unique_track_ids': {
+                'mean': np.mean(unique_ids_list) if unique_ids_list else 0,
+                'std': np.std(unique_ids_list) if unique_ids_list else 0,
+                'median': np.median(unique_ids_list) if unique_ids_list else 0,
+            },
+            'avg_track_duration': {
+                'mean': np.mean(avg_durations_list) if avg_durations_list else 0,
+                'std': np.std(avg_durations_list) if avg_durations_list else 0,
+                'median': np.median(avg_durations_list) if avg_durations_list else 0,
+            },
+            'track_stability_score': {
+                'mean': np.mean(stability_scores_list) if stability_scores_list else 0,
+                'std': np.std(stability_scores_list) if stability_scores_list else 0,
+                'median': np.median(stability_scores_list) if stability_scores_list else 0,
             }
         }
     # returen
@@ -202,39 +228,79 @@ def print_aggregate_statistics(stats):
     
     # compare between filters
     print("\n" + "="*80)
-    print("Filter Comparison")
+    print("Filter Comparison (Mean Values)")
     print("="*80)
-    if len(FILTER_MODES) == 2:
-        filter1, filter2 = FILTER_MODES
-        print(f"\nComparing {filter1.upper()} vs {filter2.upper()}:")
-        print("-" * 80)
-        # compare metrics
-        metrics_to_compare = [
-            ('avg_detections_per_frame', 'higher_better'),
-            ('avg_yolo_confidence', 'higher_better'), 
-            ('detection_rate', 'higher_better'),
-            ('avg_speed_variance', 'lower_better')
-        ]
-        for metric, direction in metrics_to_compare:
-            val1 = stats[filter1][metric]['mean']
-            val2 = stats[filter2][metric]['mean']
-            diff = val2 - val1
-            pct_change = (diff / val1 * 100) if val1 != 0 else 0
-            display_name = metric.replace('_', ' ').title()
-            # determine best result
-            if direction == 'higher_better':
-                winner = filter2 if val2 > val1 else filter1
-                symbol = "↑" if val2 > val1 else "↓"
-            else:
-                winner = filter2 if val2 < val1 else filter1
-                symbol = "↓" if val2 < val1 else "↑"
-            # display results
-            print(f"\n{display_name}:")
-            print(f"  {filter1}: {val1:.4f}")
-            print(f"  {filter2}: {val2:.4f}")
-            print(f"  Difference: {diff:+.4f} ({pct_change:+.2f}%) {symbol}")
-            print(f"  Winner: {winner}")
+    
+    # key metrics to compare
+    key_metrics = [
+        ('avg_detections_per_frame', 'higher_better', 'Detections/Frame'),
+        ('avg_yolo_confidence', 'higher_better', 'YOLO Confidence'),
+        ('detection_rate', 'higher_better', 'Detection Rate'),
+        ('avg_speed_variance', 'lower_better', 'Speed Variance'),
+        ('unique_track_ids', 'lower_better', 'Unique IDs'),
+        ('avg_track_duration', 'higher_better', 'Track Duration'),
+        ('track_stability_score', 'higher_better', 'Stability Score')
+    ]
+    
+    # create comparison table
+    print(f"\n{'Metric':<25} ", end="")
+    for filter_mode in FILTER_MODES:
+        print(f"{filter_mode.upper():>12} ", end="")
+    print("  Winner")
+    print("-" * (25 + 13 * len(FILTER_MODES) + 15))
+    
+    for metric, direction, display_name in key_metrics:
+        print(f"{display_name:<25} ", end="")
+        
+        # get values for all filters
+        values = {}
+        for filter_mode in FILTER_MODES:
+            val = stats[filter_mode][metric]['mean']
+            values[filter_mode] = val
+            print(f"{val:>12.4f} ", end="")
+        
+        # determine winner
+        if direction == 'higher_better':
+            winner = max(values.items(), key=lambda x: x[1])[0]
+        else:  # lower_better
+            winner = min(values.items(), key=lambda x: x[1])[0]
+        
+        print(f"  {winner.upper()}")
+    
+    # pairwise comparisons for key tracking metrics
     print("\n" + "="*80)
+    print("Key Tracking Metric Improvements")
+    print("="*80)
+    
+    baseline_filter = FILTER_MODES[0]  # typically 'none'
+    print(f"\nCompared to baseline ({baseline_filter.upper()}):\n")
+    
+    tracking_metrics = [
+        ('unique_track_ids', 'lower_better', 'Unique IDs (fragmentation)'),
+        ('avg_track_duration', 'higher_better', 'Avg Track Duration'),
+        ('track_stability_score', 'higher_better', 'Stability Score')
+    ]
+    
+    for filter_mode in FILTER_MODES[1:]:  # skip baseline
+        print(f"{filter_mode.upper()}:")
+        for metric, direction, display_name in tracking_metrics:
+            baseline_val = stats[baseline_filter][metric]['mean']
+            current_val = stats[filter_mode][metric]['mean']
+            diff = current_val - baseline_val
+            pct_change = (diff / baseline_val * 100) if baseline_val != 0 else 0
+            
+            # determine if improvement
+            if direction == 'higher_better':
+                improved = current_val > baseline_val
+                symbol = "+" if improved else "-"
+            else:  # lower_better
+                improved = current_val < baseline_val
+                symbol = "+" if improved else "-"
+            
+            print(f"  {symbol} {display_name}: {current_val:.2f} ({diff:+.2f}, {pct_change:+.1f}%)")
+        print()
+    
+    print("="*80)
 
 # driver code
 def main():
@@ -257,13 +323,13 @@ def main():
         # save cumulative statistics to CSV
         save_aggregate_stats(stats)
         print("\n" + "="*80)
-        print("✔ Batch Processing Complete")
+        print("+ Batch Processing Complete")
         print("="*80)
         print(f"Individual results: {RESULTS_CSV}")
         print(f"Aggregate stats: {AGGREGATE_CSV}")
         print(f"Output videos: {OUTPUT_DIR}/videos/")
     else:
-        print("\n✕ Batch processing failed - no results generated")
+        print("\n- Batch processing failed - no results generated")
 
 # save cumulative statistics to CSV file
 def save_aggregate_stats(stats):
@@ -286,7 +352,7 @@ def save_aggregate_stats(stats):
             writer = csv.DictWriter(f, fieldnames=['filter_mode', 'metric', 'mean', 'median', 'std'])
             writer.writeheader()
             writer.writerows(csv_rows)
-        print(f"✓ Cumulative statistics saved to {AGGREGATE_CSV}")
+        print(f"+ Cumulative statistics saved to {AGGREGATE_CSV}")
 
 # driver code function call
 if __name__ == "__main__":
