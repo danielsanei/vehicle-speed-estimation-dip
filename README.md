@@ -143,6 +143,71 @@ We evaluated tracking robustness by generating a Synthetic Stress Dataset from t
 
 
 
+
+# Cascaded Pipeline
+## Synthetic Degradation System
+Each frame is modified using deterministic mathematical transforms:
+
+## Enhancement Pipelines
+Each degraded frame is processed using one of several recovery pipelines:
+### Basic Methods
+- `none` — no enhancement  
+- `clahe_only` — local contrast amplification in YUV  
+- `dehaze_only` — dark channel‑based atmospheric recovery  
+
+### Hybrid Methods
+- `gamma_clahe` — adaptive gamma correction followed by CLAHE  
+- `dehaze_clahe` — dehaze then local contrast enhancement  
+- `denoise_clahe` — bilateral denoising then CLAHE  
+
+### Full Recovery Pipeline
+A cascaded multi‑stage enhancement:
+```
+Dehaze → Bilateral Denoising → Adaptive Gamma Correction → CLAHE
+```
+This pipeline aims to restore luminance, reduce noise, and sharpen edges before feeding the frame to the detector.
+
+## Stress Test Scenarios
+The suite includes 15 controlled scenarios:
+- Darkness: mild, severe, extreme  
+- Fog: mild, dense, extreme  
+- Noise: mild, heavy  
+- Motion blur: mild, severe  
+- Combined composite environments  
+- Pristine baseline  
+
+## Analysis Engine
+For each frame sequence:
+- YOLOv8 performs detection  
+- DeepSORT tracks object persistence  
+- Brightness and detection confidence are recorded  
+
+Metrics computed:
+- **Unique IDs** detected  
+- **Average tracking duration**  
+- **Average detection confidence**  
+- **Detections per frame / total detections**  
+- **Average processed‑frame brightness**
+
+These metrics quantify whether an enhancement pipeline restores sufficient structure for consistent detection.
+
+1. Place source videos in the `content/` directory.  
+2. Open `finalcascaded.ipynb` or `cascadedpipelinev3.ipynb`.  
+3. Run the full stress test block to generate:
+   - Scenario × Enhancement evaluations
+   - Aggregated performance tables
+   - Visualization dashboard  
+4. Review results stored in `content/processed/stress_tests/`.
+
+## Deployment Recommendation
+
+- **Standard Conditions:** Use `clahe_only` for minimal latency.  
+- **Challenging Conditions:** Use `gamma_clahe` or `denoise_clahe`.  
+- **Extreme Low‑Light / Severe Fog:** Use `full_recovery` for maximum restoration.  
+
+This module provides a comprehensive framework for evaluating and improving robustness of detection systems in degraded real‑world environments.
+
+
 ## Deployment Recommendations
 - **Standard Deployment:** Use `method='clahe'` for strong improvements with negligible latency.
 - **Extreme Low-Light Conditions:** Use `method='advanced_hybrid'` for nighttime or adverse surveillance scenarios. Approx. 5.5 ms per frame (~27 FPS).
@@ -152,3 +217,4 @@ We evaluated tracking robustness by generating a Synthetic Stress Dataset from t
 - Output shows bounding boxes, track IDs, and speed estimates in km/h
 
 - Blue polygon outline shows the region of interest
+
