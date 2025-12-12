@@ -95,8 +95,60 @@ To compare all filters across multiple videos:
 - `extract_videos.py` - Extracts videos with "clear" weather from Kaggle dataset using metadata file
 - `avi_to_mp4.py` - Converts AVI files to MP4 format (requires `pip install moviepy`)
 
+## Contrast
+### Methodology: Stress Testing
+We evaluated tracking robustness by generating a Synthetic Stress Dataset from the Kaggle highway videos. The dataset simulates adverse visual conditions through controlled degradations:
+- **Darkness Levels:** 0% (original) to 80% (extreme low light)
+- **Contrast Reduction:** Washed-out histograms simulating fog, haze, or glare
+
+**Baselines:**
+- None (control)
+- Linear Stretch
+- Naive Brightness Boost
+
+**Histogram-Based:**
+- Global Histogram Equalization (HE)
+- CLAHE
+
+**Mathematical Transforms:**
+- Gamma Correction
+- Sigmoid
+- Logarithmic
+
+**Frequency / Morphological:**
+- Homomorphic Filtering
+- Top-Hat Transform
+- Retinex (Multi-Scale)
+
+**Hybrid Pipelines:**
+- Hybrid: Gamma + CLAHE
+- Advanced Hybrid: Adaptive Gamma → CLAHE → Bilateral Denoising → Unsharp Masking
+
+## Benchmark Results
+
+| Method            | Stability Score | Improvement vs Baseline | 
+|-------------------|-----------------|--------------------------|
+| Advanced Hybrid   | 46.39           | +83.7%                   |
+| CLAHE             | 38.62           | +52.9%                   |
+| Retinex           | 34.45           | +36.4%                   |
+| Global HE         | 26.83           | +6.2%                    |
+| Baseline (None)   | 25.25           | 0%                       |
+
+## Usage
+
+1. Place your reference video inside the `content/` directory.
+2. Open `contrastfinal.ipynb`.
+3. Run the analysis cells to generate Efficiency Frontier and Robustness Curve plots.
+
+
+
+
+## Deployment Recommendations
+- **Standard Deployment:** Use `method='clahe'` for strong improvements with negligible latency.
+- **Extreme Low-Light Conditions:** Use `method='advanced_hybrid'` for nighttime or adverse surveillance scenarios. Approx. 5.5 ms per frame (~27 FPS).
 
 ## Notes
 - Default confidence threshold: 0.50
 - Output shows bounding boxes, track IDs, and speed estimates in km/h
+
 - Blue polygon outline shows the region of interest
