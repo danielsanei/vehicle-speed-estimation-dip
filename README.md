@@ -42,7 +42,7 @@ Run `pip install moviepy` inside virtual environment, then run avi_to_mp4.py to 
 # Distortions
 
 ## Denoising
-All needed files are located inside: `distortions/denoising`.
+All needed files are located inside: `distortions/denoising`. Here is the link to the custom dataset used: https://drive.google.com/drive/folders/1GcqmkXY_qymql-VENK1SV7A7QgcJAcuA?usp=sharing
 
 ### Overview
 The denoising module (`noise_preprocessing.py`) provides preprocessing filters to reduce noise in video frames before object detection. This can improve detection accuracy and tracking stability on noisy footage.
