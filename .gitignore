@@ -1,7 +1,11 @@
 weights/
 
-content/
+distortions/denoising/content/noise/
+distortions/denoising/content/noise/custom_mp4
+distortions/denoising/content/noise/kaggle_avi
+distortions/denoising/content/noise/kaggle_mp4
+distortions/denoising/content/batch_results/noise/custom_mp4/videos/
+distortions/denoising/content/batch_results/noise/kaggle_mp4/videos/
 
 videos_avi/
-
 videos_mp4/
