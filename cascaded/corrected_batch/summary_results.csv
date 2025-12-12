@@ -1,0 +1,8 @@
+Method,Unique IDs,Avg Duration (frames),Avg Confidence,Detections/Frame,FPS,Avg Brightness
+baseline,6.2,31.085,0.615,1.826,4.082,137.975
+dehaze_only,6.0,25.981,0.607,1.838,5.168,107.464
+adaptive_dehaze,6.2,31.085,0.615,1.826,4.039,137.953
+clahe_only,7.4,30.501,0.607,1.947,3.929,138.021
+dehaze_clahe,5.4,23.317,0.612,1.4,5.184,120.037
+light_cascade,6.8,30.723,0.611,2.423,4.938,119.303
+original_cascade,4.0,30.314,0.599,1.034,5.34,106.149
