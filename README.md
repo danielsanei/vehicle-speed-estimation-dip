@@ -95,6 +95,50 @@ To compare all filters across multiple videos:
 - `extract_videos.py` - Extracts videos with "clear" weather from Kaggle dataset using metadata file
 - `avi_to_mp4.py` - Converts AVI files to MP4 format (requires `pip install moviepy`)
 
+## Dehazing
+
+### Overview
+`dehazing.py` contains every function 
+
+The denoising module (`noise_preprocessing.py`) provides preprocessing filters to reduce noise in video frames before object detection. This can improve detection accuracy and tracking stability on noisy footage.
+
+### Available Filters
+1. **None** - No filtering (baseline)
+2. **Gaussian Blur** - Mathematically-driven approach that estimates noise level and applies adaptive Gaussian filtering
+3. **Median Filter** - Empirically-driven approach using median filtering with a 3x3 kernel
+
+### Files
+- `noise_preprocessing.py` - Denoising functions
+- `object_tracking_2.py` - Main vehicle speed estimation script with denoising support
+- `batch_runner.py` - Automated batch processing script to run all 3 filters on all videos in specified dataset
+
+### Running with Denoising
+**Single video with specified filter:**
+```bash
+# No filtering (baseline)
+python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter none
+
+# Gaussian filtering
+python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter gaussian
+
+# Median filtering
+python object_tracking_2.py --video content/highway.mp4 --output output.mp4 --filter median
+```
+
+1. Download the extreme fog dataset here: https://drive.google.com/drive/u/0/folders/1_MD8IKrYOPNCUmPmUX6HDMi2uIGnVRDc
+
+2. Load input videos in ./input
+
+3. Create output videos for all DCP dehazing variants:
+```bash
+python dehazing.py input/fog.mp4 output
+```
+
+4. Count detections for all dehazing methods:
+```bash
+python dehazing.py input/fog.mp4 output
+```
+
 ## Contrast
 ### Methodology: Stress Testing
 We evaluated tracking robustness by generating a Synthetic Stress Dataset from the Kaggle highway videos. The dataset simulates adverse visual conditions through controlled degradations:
@@ -217,4 +261,5 @@ This module provides a comprehensive framework for evaluating and improving robu
 - Output shows bounding boxes, track IDs, and speed estimates in km/h
 
 - Blue polygon outline shows the region of interest
+
 
